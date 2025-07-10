@@ -116,27 +116,52 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
 
   const updateAssetStatusForAction = async (action: LifecycleAction) => {
     try {
-      let newStatus: string | null = null;
+      let newStatus: Asset['status'] | null = null;
+      let shouldUpdateOwnership = false;
       
       switch (action.actionType) {
         case 'New Deployment':
         case 'Redeployment':
           newStatus = 'Active';
+          shouldUpdateOwnership = true;
           break;
         case 'Surrender':
           newStatus = 'In Store';
+          shouldUpdateOwnership = true;
           break;
         case 'Relocation':
         case 'Change of Ownership':
-          // Keep current status for these actions
+          // Keep current status but update ownership
+          shouldUpdateOwnership = true;
           break;
         case 'Exit':
           newStatus = 'In Store';
+          shouldUpdateOwnership = true;
           break;
       }
       
-      if (newStatus) {
-        await assetStatusService.updateAssetStatus(action.assetId, newStatus as any);
+      if (shouldUpdateOwnership) {
+        // Determine the new owner based on action type
+        let newUser = action.toUser;
+        let newLocation = action.toLocation;
+        let newDepartment = action.toDepartment;
+        
+        // For surrender and exit, asset goes back to ICT Manager
+        if (action.actionType === 'Surrender' || action.actionType === 'Exit') {
+          newUser = 'ICT Manager';
+          newLocation = 'ICT Store';
+          newDepartment = 'ICT';
+        }
+        
+        await assetStatusService.updateAssetOwnership(
+          action.assetId,
+          newUser,
+          newLocation,
+          newDepartment,
+          newStatus || undefined
+        );
+      } else if (newStatus) {
+        await assetStatusService.updateAssetStatus(action.assetId, newStatus);
       }
     } catch (err) {
       console.error('Error updating asset status:', err);
@@ -170,8 +195,18 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
           performedBy: currentUser,
           timestamp: new Date().toISOString(),
           details: `${action.actionType} request completed for asset ${action.assetId}`,
-          oldValues: { status: 'Pending' },
-          newValues: { status: 'Completed' }
+          oldValues: { 
+            status: 'Pending',
+            ...(action.fromUser && { user: action.fromUser }),
+            ...(action.fromLocation && { location: action.fromLocation }),
+            ...(action.fromDepartment && { department: action.fromDepartment })
+          },
+          newValues: { 
+            status: 'Completed',
+            user: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT Manager' : action.toUser,
+            location: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT Store' : action.toLocation,
+            department: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT' : action.toDepartment
+          }
         });
       }
     } catch (err) {

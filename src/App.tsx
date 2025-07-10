@@ -94,7 +94,17 @@ function App() {
   const handleDashboardSaveAsset = async (assetData: Partial<Asset>) => {
     try {
       setLoading(true);
-      const newAsset = await assetsService.create(assetData as Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>);
+      
+      // Ensure new assets go to ICT Store with ICT Manager
+      const newAssetData = {
+        ...assetData,
+        user: 'ICT Manager',
+        location: 'ICT Store',
+        department: 'ICT',
+        status: 'In Store'
+      };
+      
+      const newAsset = await assetsService.create(newAssetData as Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>);
       setAssets([newAsset, ...assets]);
       
       // Add audit log
@@ -103,8 +113,13 @@ function App() {
         action: 'Asset Created',
         performedBy: currentUser?.name || 'Unknown',
         timestamp: new Date().toISOString(),
-        details: `New ${newAsset.assetType} asset created: ${newAsset.brand} ${newAsset.model}`,
-        newValues: { status: newAsset.status, location: newAsset.location }
+        details: `New ${newAsset.assetType} asset created: ${newAsset.brand} ${newAsset.model} - Assigned to ICT Manager`,
+        newValues: { 
+          status: newAsset.status, 
+          location: newAsset.location,
+          user: newAsset.user,
+          department: newAsset.department
+        }
       };
       
       const savedAuditLog = await auditService.create(auditEntry);

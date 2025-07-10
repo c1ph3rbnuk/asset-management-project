@@ -240,6 +240,25 @@ export const assetStatusService = {
     if (error) throw error
   },
 
+  async updateAssetOwnership(assetId: string, newUser: string, newLocation: string, newDepartment: string, newStatus?: Asset['status']): Promise<void> {
+    const updates: any = {
+      user_name: newUser,
+      location: newLocation,
+      department: newDepartment,
+      updated_at: new Date().toISOString()
+    }
+    
+    if (newStatus) {
+      updates.status = newStatus
+    }
+    
+    const { error } = await supabase
+      .from('assets')
+      .update(updates)
+      .eq('tag', assetId)
+    
+    if (error) throw error
+  },
   async getAssetByTag(assetTag: string): Promise<Asset | null> {
     const { data, error } = await supabase
       .from('assets')

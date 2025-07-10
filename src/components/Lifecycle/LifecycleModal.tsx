@@ -194,6 +194,16 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
                 placeholder={isSurrender ? 'ICT Store' : 
                            isRedeployment ? 'User to deploy to' : 'New user name'}
               />
+              {(isRedeployment || actionType === 'New Deployment') && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Asset ownership will be transferred to this user
+                </p>
+              )}
+              {actionType === 'Change of Ownership' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Asset ownership will be changed to this user
+                </p>
+              )}
             </div>
 
             <div>

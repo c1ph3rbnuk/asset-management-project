@@ -17,7 +17,7 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
     model: asset?.model || '',
     tag: asset?.tag || '',
     brand: asset?.brand || '',
-    user: asset?.user || '',
+    user: asset?.user || 'ICT Manager',
     location: asset?.location || '',
     department: asset?.department || '',
     status: asset?.status || (mode === 'add' ? 'In Store' : asset?.status || 'In Store')
@@ -25,7 +25,20 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // For new assets, ensure they go to ICT Store with ICT Manager
+    if (mode === 'add') {
+      const newAssetData = {
+        ...formData,
+        user: 'ICT Manager',
+        location: 'ICT Store',
+        department: 'ICT',
+        status: 'In Store'
+      };
+      onSave(newAssetData);
+    } else {
+      onSave(formData);
+    }
     onClose();
   };
 
@@ -127,15 +140,23 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Current User</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {mode === 'add' ? 'Assigned Manager' : 'Current User'}
+              </label>
               <input
                 type="text"
                 name="user"
                 value={formData.user}
                 onChange={handleChange}
-                disabled={isReadOnly}
+                disabled={isReadOnly || mode === 'add'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                placeholder={mode === 'add' ? 'ICT Manager' : 'Current user name'}
               />
+              {mode === 'add' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  New assets are automatically assigned to ICT Manager
+                </p>
+              )}
             </div>
 
             <div>
@@ -143,12 +164,18 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
               <input
                 type="text"
                 name="location"
-                value={formData.location}
+                value={mode === 'add' ? 'ICT Store' : formData.location}
                 onChange={handleChange}
-                disabled={isReadOnly}
+                disabled={isReadOnly || mode === 'add'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                placeholder={mode === 'add' ? 'ICT Store' : 'Asset location'}
                 required
               />
+              {mode === 'add' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  New assets go directly to ICT Store
+                </p>
+              )}
             </div>
 
             <div>
@@ -162,7 +189,7 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 required
               >
                 <option value="">Select Department</option>
-                <option value="ICT">ICT</option>
+                <option value="ICT" selected={mode === 'add'}>ICT</option>
                 <option value="Customs">Customs</option>
                 <option value="Domestic Taxes">Domestic Taxes</option>
                 <option value="Investigation & Enforcement">Investigation & Enforcement</option>
@@ -173,6 +200,11 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 <option value="Strategy & Planning">Strategy & Planning</option>
                 <option value="Commissioner General">Commissioner General</option>
               </select>
+              {mode === 'add' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  New assets are assigned to ICT Department
+                </p>
+              )}
             </div>
 
             <div>
