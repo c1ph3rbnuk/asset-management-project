@@ -1,0 +1,221 @@
+import React, { useState } from 'react';
+import { X, Save } from 'lucide-react';
+import { Asset } from '../../types';
+
+interface AssetModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (asset: Partial<Asset>) => void;
+  asset?: Asset | null;
+  mode: 'add' | 'edit' | 'view';
+}
+
+const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset, mode }) => {
+  const [formData, setFormData] = useState<Partial<Asset>>({
+    assetType: asset?.assetType || 'PC',
+    serialNumber: asset?.serialNumber || '',
+    model: asset?.model || '',
+    tag: asset?.tag || '',
+    brand: asset?.brand || '',
+    user: asset?.user || '',
+    location: asset?.location || '',
+    department: asset?.department || '',
+    status: asset?.status || (mode === 'add' ? 'In Store' : asset?.status || 'In Store')
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+    onClose();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  if (!isOpen) return null;
+
+  const isReadOnly = mode === 'view';
+  const title = mode === 'add' ? 'Add New Asset' : mode === 'edit' ? 'Edit Asset' : 'Asset Details';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-black">{title}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+              <select
+                name="assetType"
+                value={formData.assetType}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              >
+                <option value="PC">PC</option>
+                <option value="Laptop">Laptop</option>
+                <option value="VDI">VDI</option>
+                <option value="Printer">Printer</option>
+                <option value="Router">Router</option>
+                <option value="Switch">Switch</option>
+                <option value="IP Phone">IP Phone</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Tag</label>
+              <input
+                type="text"
+                name="tag"
+                value={formData.tag}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+              <input
+                type="text"
+                name="serialNumber"
+                value={formData.serialNumber}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+              <input
+                type="text"
+                name="brand"
+                value={formData.brand}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
+              <input
+                type="text"
+                name="model"
+                value={formData.model}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current User</label>
+              <input
+                type="text"
+                name="user"
+                value={formData.user}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+              <select
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              >
+                <option value="">Select Department</option>
+                <option value="ICT">ICT</option>
+                <option value="Customs">Customs</option>
+                <option value="Domestic Taxes">Domestic Taxes</option>
+                <option value="Investigation & Enforcement">Investigation & Enforcement</option>
+                <option value="Human Resources">Human Resources</option>
+                <option value="Finance">Finance</option>
+                <option value="Legal">Legal</option>
+                <option value="Audit">Audit</option>
+                <option value="Strategy & Planning">Strategy & Planning</option>
+                <option value="Commissioner General">Commissioner General</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                required
+              >
+                <option value="Active">Active</option>
+                <option value="In Store">In Store</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+                <option value="Obsolete">Obsolete</option>
+                <option value="Disposed">Disposed</option>
+              </select>
+            </div>
+          </div>
+
+          {!isReadOnly && (
+            <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#CC092F] text-white rounded-lg hover:bg-[#AA0726] flex items-center space-x-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>{mode === 'add' ? 'Add Asset' : 'Save Changes'}</span>
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default AssetModal;
