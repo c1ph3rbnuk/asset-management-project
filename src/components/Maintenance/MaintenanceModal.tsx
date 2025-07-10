@@ -143,10 +143,10 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
                 required
               >
-                <option value="David Mwangi">David Mwangi</option>
-                <option value="Jane Muthoni">Jane Muthoni</option>
-                <option value="Peter Ochieng">Peter Ochieng</option>
-                <option value="Mary Wanjiku">Mary Wanjiku</option>
+                <option value="Peter">Peter</option>
+                <option value="Hilary">Hilary</option>
+                <option value="Pricila">Pricila</option>
+                <option value="Charles">Charles</option>
               </select>
             </div>
 
