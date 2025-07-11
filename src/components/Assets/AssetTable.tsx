@@ -29,7 +29,6 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
     if (searchTerm) {
       filtered = filtered.filter(asset =>
         asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
