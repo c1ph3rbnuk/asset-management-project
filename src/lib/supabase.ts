@@ -170,7 +170,7 @@ export const assetPairsService = {
     }
     
     if (userDetails) {
-      updates.current_user = userDetails.fullName
+      updates.current_user_name = userDetails.fullName
       updates.current_location = userDetails.location
       updates.current_department = userDetails.department
       updates.current_section = userDetails.section
@@ -538,7 +538,7 @@ function transformAssetPairFromDB(dbPair: any): AssetPair {
     secondaryAssetId: dbPair.secondary_asset_id,
     pairType: dbPair.pair_type,
     isDeployed: dbPair.is_deployed,
-    currentUser: dbPair.current_user,
+    currentUser: dbPair.current_user_name,
     currentLocation: dbPair.current_location,
     currentDepartment: dbPair.current_department,
     currentSection: dbPair.current_section,
@@ -554,7 +554,7 @@ function transformAssetPairToDB(pair: Partial<AssetPair>): any {
   if (pair.secondaryAssetId) dbPair.secondary_asset_id = pair.secondaryAssetId
   if (pair.pairType) dbPair.pair_type = pair.pairType
   if (pair.isDeployed !== undefined) dbPair.is_deployed = pair.isDeployed
-  if (pair.currentUser !== undefined) dbPair.current_user = pair.currentUser
+  if (pair.currentUser !== undefined) dbPair.current_user_name = pair.currentUser
   if (pair.currentLocation !== undefined) dbPair.current_location = pair.currentLocation
   if (pair.currentDepartment !== undefined) dbPair.current_department = pair.currentDepartment
   if (pair.currentSection !== undefined) dbPair.current_section = pair.currentSection
