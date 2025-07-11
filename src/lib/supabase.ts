@@ -384,11 +384,11 @@ export const usersService = {
       }
       
       console.log('User found, checking password...');
-      console.log('Stored password:', data.password);
+      console.log('Stored password:', data.password_hash);
       console.log('Provided password:', password);
       
       // Check password (case-sensitive comparison)
-      if (data.password !== password) {
+      if (data.password_hash !== password) {
         console.log('Password mismatch');
         return null;
       }
