@@ -11,6 +11,35 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading = false, error: 
   const [personalNumber, setPersonalNumber] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  const testDatabaseConnection = async () => {
+    setTestingConnection(true);
+    try {
+      console.log('Testing database connection...');
+      const { supabase } = await import('../../lib/supabase');
+      
+      // Test basic connection
+      const { data, error } = await supabase
+        .from('users')
+        .select('personal_number, name, is_active')
+        .limit(5);
+      
+      console.log('Database test result:', { data, error });
+      
+      if (error) {
+        alert(`Database Error: ${error.message}`);
+      } else {
+        alert(`Database Connected! Found ${data?.length || 0} users`);
+        console.log('Available users:', data);
+      }
+    } catch (err) {
+      console.error('Connection test error:', err);
+      alert(`Connection Error: ${err}`);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const validatePersonalNumber = (number: string): boolean => {
     // Check if it starts with K or T followed by exactly 8 digits
@@ -21,8 +50,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading = false, error: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    console.log('Form submission:', { personalNumber, password: '***' });
 
     const upperPersonalNumber = personalNumber.toUpperCase();
+    console.log('Uppercase personal number:', upperPersonalNumber);
 
     if (!validatePersonalNumber(upperPersonalNumber)) {
       setError('Personal number must start with K or T followed by 8 digits (e.g., K12345678)');
@@ -38,10 +70,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading = false, error: 
       setError('Password must be at least 6 characters long');
       return;
     }
+    
     try {
+      console.log('Calling onLogin...');
       await onLogin(upperPersonalNumber, password);
     } catch (err) {
-      // Error handling is done in the parent component
+      console.error('Login error in form:', err);
     }
   };
 
@@ -118,6 +152,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, loading = false, error: 
           <p className="text-xs text-gray-500">
             Authorized ICT personnel only. All activities are logged and monitored.
           </p>
+          <button
+            type="button"
+            onClick={testDatabaseConnection}
+            disabled={testingConnection}
+            className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50"
+          >
+            {testingConnection ? 'Testing...' : 'Test Database Connection'}
+          </button>
         </div>
       </div>
     </div>

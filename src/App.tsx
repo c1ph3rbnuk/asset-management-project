@@ -62,11 +62,17 @@ function App() {
       setLoading(true);
       setError(null);
       
+      console.log('App handleLogin called with:', { personalNumber, password: '***' });
+      
       const user = await usersService.authenticate(personalNumber, password);
+      console.log('Authentication result:', user);
+      
       if (user) {
+        console.log('Setting user and authenticated state');
         setCurrentUser(user);
         setIsAuthenticated(true);
       } else {
+        console.log('Authentication failed - invalid credentials');
         setError('Invalid credentials');
       }
     } catch (err) {

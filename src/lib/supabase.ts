@@ -357,6 +357,57 @@ export const auditService = {
 // Users service
 export const usersService = {
   async authenticate(personalNumber: string, password: string): Promise<User | null> {
+    console.log('Attempting login with:', { personalNumber, password: '***' });
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('personal_number', personalNumber)
+        .eq('is_active', true)
+        .single()
+      
+      console.log('Database query result:', { data, error });
+      
+      if (error) {
+        console.error('Database error:', error);
+        if (error.code === 'PGRST116') {
+          console.log('User not found');
+          return null;
+        }
+        throw error;
+      }
+      
+      if (!data) {
+        console.log('No user data returned');
+        return null;
+      }
+      
+      console.log('User found, checking password...');
+      console.log('Stored password:', data.password);
+      console.log('Provided password:', password);
+      
+      // Check password (case-sensitive comparison)
+      if (data.password !== password) {
+        console.log('Password mismatch');
+        return null;
+      }
+      
+      console.log('Password matches, updating last login...');
+      
+      // Update last login
+      await supabase
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', data.id)
+      
+      console.log('Login successful');
+      return transformUserFromDB(data)
+    } catch (err) {
+      console.error('Authentication error:', err);
+      return null;
+    }
+  },
     const { data, error } = await supabase
       .from('users')
       .select('*')
