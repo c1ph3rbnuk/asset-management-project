@@ -123,7 +123,7 @@ export const assetPairsService = {
     return transformAssetPairFromDB(data)
   },
 
-  async getByAssetSerial(serialNumber: string): Promise<AssetPair | null> {
+  /*async getByAssetSerial(serialNumber: string): Promise<AssetPair | null> {
     const { data, error } = await supabase
       .from('asset_pairs')
       .select(`
@@ -136,7 +136,32 @@ export const assetPairsService = {
     
     if (error && error.code !== 'PGRST116') throw error
     return data ? transformAssetPairFromDB(data) : null
-  },
+  },*/
+  async getByAssetSerial(serialNumber: string): Promise<AssetPair | null> {
+  // Step 1: Get the asset ID
+  const { data: asset, error: assetError } = await supabase
+    .from('assets')
+    .select('id')
+    .eq('serial_number', serialNumber)
+    .single();
+
+  if (assetError || !asset) throw assetError ?? new Error('Asset not found');
+
+  // Step 2: Find asset_pairs where asset is primary or secondary
+  const { data, error } = await supabase
+    .from('asset_pairs')
+    .select(`
+      *,
+      primary_asset:assets!asset_pairs_primary_asset_id_fkey(*),
+      secondary_asset:assets!asset_pairs_secondary_asset_id_fkey(*)
+    `)
+    .or(`primary_asset_id.eq.${asset.id},secondary_asset_id.eq.${asset.id}`)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+
+  return data ? transformAssetPairFromDB(data) : null;
+},
 
   async updateDeploymentStatus(pairId: string, isDeployed: boolean, userDetails?: any): Promise<void> {
     const updates: any = { 
