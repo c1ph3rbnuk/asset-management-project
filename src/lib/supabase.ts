@@ -408,26 +408,6 @@ export const usersService = {
       return null;
     }
   },
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('personal_number', personalNumber)
-      .eq('is_active', true)
-      .single()
-    
-    if (error || !data) return null
-    
-    if (data.password !== password) {
-      return null
-    }
-    
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', data.id)
-    
-    return transformUserFromDB(data)
-  },
 
   async getAll(): Promise<User[]> {
     const { data, error } = await supabase
