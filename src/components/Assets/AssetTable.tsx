@@ -4,7 +4,7 @@ import { Search, Filter, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { Asset, AuditLog } from '../../types';
 import AssetModal from './AssetModal';
 import { assetsService } from '../../lib/supabase';
-const [loading, setLoading] = useState(false);
+
 
 interface AssetTableProps {
   assets: Asset[];
@@ -21,6 +21,7 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'view'>('add');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     let filtered = assets;
