@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Search, Filter, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { Asset, AuditLog } from '../../types';
 import AssetModal from './AssetModal';
-import { assetsService, assetStatusService } from '../../lib/supabase';
+import { assetsService } from '../../lib/supabase';
 
 
 interface AssetTableProps {
@@ -76,21 +76,28 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
 
   const handleCreateAsset = async (assetData: Partial<Asset>) => {
     try {
+      setLoading(true);
       const newAsset = await assetsService.create(assetData as Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>);
       onAssetUpdate([newAsset, ...assets]);
       
       // Add audit log
       onAuditLog({
-        assetId: newAsset.tag,
+        assetSerial: newAsset.serialNumber,
         action: 'Asset Created',
         performedBy: currentUser,
         timestamp: new Date().toISOString(),
-        details: `New ${newAsset.assetType} asset created: ${newAsset.brand} ${newAsset.model}`,
+        details: `New ${newAsset.assetType} asset created: ${newAsset.brand} ${newAsset.model} (S/N: ${newAsset.serialNumber})`,
         newValues: { status: newAsset.status, location: newAsset.location, user: newAsset.user }
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating asset:', err);
-      alert('Failed to create asset');
+      if (err.message && err.message.includes('already exists')) {
+        alert(`Error: ${err.message}`);
+      } else {
+        alert('Failed to create asset');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,7 +118,7 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
       
       // Add audit log
       onAuditLog({
-        assetId: updatedAsset.tag,
+        assetSerial: updatedAsset.serialNumber,
         action: 'Asset Updated',
         performedBy: currentUser,
         timestamp: new Date().toISOString(),
@@ -144,11 +151,11 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
         
         // Add audit log
         onAuditLog({
-          assetId: asset.tag,
+          assetSerial: asset.serialNumber,
           action: 'Asset Deleted',
           performedBy: currentUser,
           timestamp: new Date().toISOString(),
-          details: `Asset deleted: ${asset.brand} ${asset.model}`,
+          details: `Asset deleted: ${asset.brand} ${asset.model} (S/N: ${asset.serialNumber})`,
           oldValues: { status: asset.status, location: asset.location }
         });
       } catch (err) {
@@ -238,7 +245,7 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
         <table className="w-full">
           <thead className="bg-[#F4F4F4]">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Details</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
@@ -252,9 +259,11 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
               <tr key={asset.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <p className="text-sm font-medium text-black">{asset.tag}</p>
+                    <p className="text-sm font-medium text-black">{asset.assetType}</p>
                     <p className="text-sm text-gray-600">{asset.brand} {asset.model}</p>
-                    <p className="text-xs text-gray-500">{asset.assetType}</p>
+                    {asset.section && (
+                      <p className="text-xs text-gray-500">Section: {asset.section}</p>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

@@ -15,12 +15,12 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
     assetType: asset?.assetType || 'PC',
     serialNumber: asset?.serialNumber || '',
     model: asset?.model || '',
-    tag: asset?.tag || '',
     brand: asset?.brand || '',
     user: asset?.user || 'ICT Manager',
-    location: asset?.location || '',
-    department: asset?.department || '',
-    status: asset?.status || (mode === 'add' ? 'In Store' : asset?.status || 'In Store')
+    location: asset?.location || 'ICT Store',
+    department: asset?.department || 'ICT',
+    section: asset?.section || '',
+    status: asset?.status || 'In Store'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,6 +80,9 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 <option value="PC">PC</option>
                 <option value="Laptop">Laptop</option>
                 <option value="VDI">VDI</option>
+                <option value="Monitor">Monitor</option>
+                <option value="CPU">CPU</option>
+                <option value="VDI Receiver">VDI Receiver</option>
                 <option value="Printer">Printer</option>
                 <option value="Router">Router</option>
                 <option value="Switch">Switch</option>
@@ -88,20 +91,10 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Tag</label>
-              <input
-                type="text"
-                name="tag"
-                value={formData.tag}
-                onChange={handleChange}
-                disabled={isReadOnly}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Serial Number
+                <span className="text-red-500 ml-1">*</span>
+              </label>
               <input
                 type="text"
                 name="serialNumber"
@@ -110,7 +103,11 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 disabled={isReadOnly}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
                 required
+                placeholder="Enter unique serial number"
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Serial number must be unique across all assets
+              </p>
             </div>
 
             <div>
@@ -184,7 +181,7 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 name="department"
                 value={formData.department}
                 onChange={handleChange}
-                disabled={isReadOnly}
+                disabled={isReadOnly || mode === 'add'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
                 required
               >
@@ -208,12 +205,25 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+              <input
+                type="text"
+                name="section"
+                value={formData.section}
+                onChange={handleChange}
+                disabled={isReadOnly}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
+                placeholder="Section within department"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                disabled={isReadOnly}
+                disabled={isReadOnly || mode === 'add'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
                 required
               >
@@ -223,6 +233,11 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
                 <option value="Obsolete">Obsolete</option>
                 <option value="Disposed">Disposed</option>
               </select>
+              {mode === 'add' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  New assets start with "In Store" status
+                </p>
+              )}
             </div>
           </div>
 
