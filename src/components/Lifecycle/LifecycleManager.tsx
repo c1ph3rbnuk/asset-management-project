@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Clock, CheckCircle, Plus, Download, FileText } from 'lucide-react';
-import { LifecycleAction, AuditLog } from '../../types';
+import { LifecycleAction, AuditLog, AssetPair } from '../../types';
 import LifecycleModal from './LifecycleModal';
-import { lifecycleService, assetStatusService } from '../../lib/supabase';
+import { lifecycleService, assetStatusService, assetPairsService, assetsService } from '../../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LifecycleManagerProps {
@@ -55,17 +55,20 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
       if (!actionData.actionType) {
         throw new Error('Action type is required');
       }
-      if (!actionData.assetId) {
-        throw new Error('Asset ID is required');
+      if (!actionData.primaryAssetSerial) {
+        throw new Error('Primary asset serial number is required');
       }
-      if (!actionData.toUser) {
-        throw new Error('To User is required');
+      if (!actionData.secondaryAssetSerial) {
+        throw new Error('Secondary asset serial number is required');
       }
-      if (!actionData.toLocation) {
-        throw new Error('To Location is required');
+      if (!actionData.toUserFullName && actionData.actionType !== 'Surrender') {
+        throw new Error('User full name is required');
       }
-      if (!actionData.toDepartment) {
-        throw new Error('To Department is required');
+      if (!actionData.toLocation && actionData.actionType !== 'Surrender') {
+        throw new Error('Location is required');
+      }
+      if (!actionData.toDepartment && actionData.actionType !== 'Surrender') {
+        throw new Error('Department is required');
       }
 
       const newAction = {
@@ -84,22 +87,22 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
         savedAction.movementFormPath = filePath;
       }
 
-      // Update asset status based on action type
-      await updateAssetStatusForAction(savedAction);
+      // Handle asset pair creation/updates based on action type
+      await handleAssetPairAction(savedAction);
 
       // Update local state
       onActionUpdate([savedAction, ...actions]);
 
       // Add audit log
       onAuditLog({
-        assetId: savedAction.assetId,
+        assetSerial: savedAction.primaryAssetSerial,
         action: `${savedAction.actionType} Request Created`,
         performedBy: currentUser,
         timestamp: new Date().toISOString(),
-        details: `${savedAction.actionType} request created for asset ${savedAction.assetId}`,
+        details: `${savedAction.actionType} request created for asset pair ${savedAction.primaryAssetSerial} + ${savedAction.secondaryAssetSerial}`,
         newValues: {
-          fromUser: savedAction.fromUser,
-          toUser: savedAction.toUser,
+          fromUser: savedAction.fromUserFullName,
+          toUser: savedAction.toUserFullName,
           fromLocation: savedAction.fromLocation,
           toLocation: savedAction.toLocation,
           status: savedAction.status
@@ -114,58 +117,152 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
     }
   };
 
-  const updateAssetStatusForAction = async (action: LifecycleAction) => {
+  const handleAssetPairAction = async (action: LifecycleAction) => {
     try {
-      let newStatus: Asset['status'] | null = null;
-      let shouldUpdateOwnership = false;
+      // Get the assets
+      const primaryAsset = await assetsService.getBySerial(action.primaryAssetSerial);
+      const secondaryAsset = await assetsService.getBySerial(action.secondaryAssetSerial);
+      
+      if (!primaryAsset || !secondaryAsset) {
+        throw new Error('Assets not found');
+      }
+      
+      let assetPair: AssetPair | null = null;
+      
+      // Check if asset pair already exists
+      assetPair = await assetPairsService.getByAssetSerial(action.primaryAssetSerial);
       
       switch (action.actionType) {
         case 'New Deployment':
+          // Create new asset pair
+          if (!assetPair) {
+            assetPair = await assetPairsService.create({
+              primaryAssetId: primaryAsset.id,
+              secondaryAssetId: secondaryAsset.id,
+              pairType: action.assetPairType!,
+              isDeployed: false
+            });
+          }
+          
+          // Mark as deployed with user details
+          await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+            fullName: action.toUserFullName,
+            location: action.toLocation,
+            department: action.toDepartment,
+            section: action.toSection
+          });
+          
+          // Update individual asset statuses
+          await assetsService.updateBySerial(action.primaryAssetSerial, { 
+            status: 'Active',
+            user: action.toUserFullName,
+            location: action.toLocation,
+            department: action.toDepartment,
+            section: action.toSection,
+            domainAccount: action.toUserDomainAccount
+          });
+          await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+            status: 'Active',
+            user: action.toUserFullName,
+            location: action.toLocation,
+            department: action.toDepartment,
+            section: action.toSection,
+            domainAccount: action.toUserDomainAccount
+          });
+          break;
+          
         case 'Redeployment':
-          newStatus = 'Active';
-          shouldUpdateOwnership = true;
+          if (assetPair) {
+            // Update deployment with new user details
+            await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+              fullName: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection
+            });
+            
+            // Update individual asset statuses
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          }
           break;
-        case 'Surrender':
-          newStatus = 'In Store';
-          shouldUpdateOwnership = true;
-          break;
+          
         case 'Relocation':
         case 'Change of Ownership':
-          // Keep current status but update ownership
-          shouldUpdateOwnership = true;
+          if (assetPair) {
+            // Update deployment with new user details
+            await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+              fullName: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection
+            });
+            
+            // Update individual asset statuses
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          }
           break;
-        case 'Exit':
-          newStatus = 'In Store';
-          shouldUpdateOwnership = true;
+          
+        case 'Surrender':
+          if (assetPair) {
+            // Mark as not deployed and return to ICT
+            await assetPairsService.updateDeploymentStatus(assetPair.id, false, {
+              fullName: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management'
+            });
+            
+            // Update individual asset statuses
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'In Store',
+              user: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management',
+              domainAccount: 'ICT001'
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              status: 'In Store',
+              user: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management',
+              domainAccount: 'ICT001'
+            });
+          }
           break;
-      }
-      
-      if (shouldUpdateOwnership) {
-        // Determine the new owner based on action type
-        let newUser = action.toUser;
-        let newLocation = action.toLocation;
-        let newDepartment = action.toDepartment;
-        
-        // For surrender and exit, asset goes back to ICT Manager
-        if (action.actionType === 'Surrender' || action.actionType === 'Exit') {
-          newUser = 'ICT Manager';
-          newLocation = 'ICT Store';
-          newDepartment = 'ICT';
         }
-        
-        await assetStatusService.updateAssetOwnership(
-          action.assetId,
-          newUser,
-          newLocation,
-          newDepartment,
-          newStatus || undefined
-        );
-      } else if (newStatus) {
-        await assetStatusService.updateAssetStatus(action.assetId, newStatus);
-      }
     } catch (err) {
-      console.error('Error updating asset status:', err);
-      // Don't throw error to prevent blocking the main action
+      console.error('Error handling asset pair action:', err);
+      throw err; // Re-throw to show error to user
     }
   };
 
@@ -186,26 +283,26 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
 
       const action = actions.find(a => a.id === actionId);
       if (action) {
-        // Update asset status when action is completed
-        await updateAssetStatusForAction(action);
+        // Handle asset pair updates when action is completed
+        await handleAssetPairAction(action);
         
         onAuditLog({
-          assetId: action.assetId,
+          assetSerial: action.primaryAssetSerial,
           action: `${action.actionType} Completed`,
           performedBy: currentUser,
           timestamp: new Date().toISOString(),
-          details: `${action.actionType} request completed for asset ${action.assetId}`,
+          details: `${action.actionType} request completed for asset pair ${action.primaryAssetSerial} + ${action.secondaryAssetSerial}`,
           oldValues: { 
             status: 'Pending',
-            ...(action.fromUser && { user: action.fromUser }),
+            ...(action.fromUserFullName && { user: action.fromUserFullName }),
             ...(action.fromLocation && { location: action.fromLocation }),
             ...(action.fromDepartment && { department: action.fromDepartment })
           },
           newValues: { 
             status: 'Completed',
-            user: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT Manager' : action.toUser,
-            location: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT Store' : action.toLocation,
-            department: action.actionType === 'Surrender' || action.actionType === 'Exit' ? 'ICT' : action.toDepartment
+            user: action.actionType === 'Surrender' ? 'ICT Manager' : action.toUserFullName,
+            location: action.actionType === 'Surrender' ? 'ICT Store' : action.toLocation,
+            department: action.actionType === 'Surrender' ? 'ICT' : action.toDepartment
           }
         });
       }
@@ -330,7 +427,7 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
             <thead className="bg-[#F4F4F4]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset Pair</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From/To</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ICT Officer</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -348,12 +445,16 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-sm text-black">{action.assetId}</p>
+                    <div className="text-sm">
+                      <p className="text-black font-medium">{action.assetPairType} Pair</p>
+                      <p className="text-gray-600 text-xs">{action.primaryAssetSerial}</p>
+                      <p className="text-gray-600 text-xs">{action.secondaryAssetSerial}</p>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm">
-                      <p className="text-black">{action.fromUser || action.fromLocation || 'N/A'} →</p>
-                      <p className="text-black">{action.toUser || action.toLocation}</p>
+                      <p className="text-black">{action.fromUserFullName || action.fromLocation || 'ICT Store'} →</p>
+                      <p className="text-black">{action.toUserFullName || action.toLocation || 'ICT Store'}</p>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

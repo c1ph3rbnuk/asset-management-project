@@ -10,7 +10,8 @@ interface MaintenanceModalProps {
 
 const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState<Partial<MaintenanceTicket>>({
-    assetId: '',
+    assetSerial: '',
+    assetType: '',
     title: '',
     description: '',
     priority: 'Medium',
@@ -30,7 +31,8 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
     });
     onClose();
     setFormData({
-      assetId: '',
+      assetSerial: '',
+      assetType: '',
       title: '',
       description: '',
       priority: 'Medium',
@@ -64,15 +66,39 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asset ID/Tag</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Serial Number</label>
               <input
                 type="text"
-                name="assetId"
-                value={formData.assetId}
+                name="assetSerial"
+                value={formData.assetSerial}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
                 required
-                placeholder="Enter asset tag (e.g., KRA-LAP-001)"
+                placeholder="Enter asset serial number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+              <select
+                name="assetType"
+                value={formData.assetType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                required
+              >
+                <option value="">Select Asset Type</option>
+                <option value="PC">PC</option>
+                <option value="Laptop">Laptop</option>
+                <option value="VDI">VDI</option>
+                <option value="Monitor">Monitor</option>
+                <option value="CPU">CPU</option>
+                <option value="VDI Receiver">VDI Receiver</option>
+                <option value="Printer">Printer</option>
+                <option value="Router">Router</option>
+                <option value="Switch">Switch</option>
+                <option value="IP Phone">IP Phone</option>
+              </select>
               />
             </div>
 

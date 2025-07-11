@@ -35,13 +35,13 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
       onTicketUpdate([newTicket, ...tickets]);
       
       // Update asset status to "Under Maintenance"
-      if (newTicket.assetId) {
-        await assetStatusService.updateAssetStatus(newTicket.assetId, 'Under Maintenance');
+      if (newTicket.assetSerial) {
+        await assetStatusService.updateAssetStatus(newTicket.assetSerial, 'Under Maintenance');
       }
       
       // Add audit log
       onAuditLog({
-        assetId: newTicket.assetId,
+        assetSerial: newTicket.assetSerial,
         action: 'Maintenance Ticket Created',
         performedBy: currentUser,
         timestamp: new Date().toISOString(),
@@ -78,13 +78,13 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
       const ticket = tickets.find(t => t.id === ticketId);
       if (ticket && newStatus === 'Resolved') {
         // Asset goes back to Active when maintenance is resolved (unless declared obsolete)
-        await assetStatusService.updateAssetStatus(ticket.assetId, 'Active');
+        await assetStatusService.updateAssetStatus(ticket.assetSerial, 'Active');
       }
       
       // Add audit log
       if (ticket) {
         onAuditLog({
-          assetId: ticket.assetId,
+          assetSerial: ticket.assetSerial,
           action: 'Maintenance Status Updated',
           performedBy: currentUser,
           timestamp: new Date().toISOString(),
@@ -132,14 +132,14 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
       
       // Update asset status based on resolution
       if (resolutionData.isObsolete) {
-        await assetStatusService.updateAssetStatus(selectedTicket.assetId, 'Obsolete');
+        await assetStatusService.updateAssetStatus(selectedTicket.assetSerial, 'Obsolete');
       } else {
-        await assetStatusService.updateAssetStatus(selectedTicket.assetId, 'Active');
+        await assetStatusService.updateAssetStatus(selectedTicket.assetSerial, 'Active');
       }
       
       // Add audit log
       onAuditLog({
-        assetId: selectedTicket.assetId,
+        assetSerial: selectedTicket.assetSerial,
         action: resolutionData.isObsolete ? 'Asset Declared Obsolete' : 'Maintenance Resolved',
         performedBy: currentUser,
         timestamp: new Date().toISOString(),
@@ -251,7 +251,10 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-sm text-black">{ticket.assetId}</p>
+                    <div className="text-sm">
+                      <p className="text-black font-medium">{ticket.assetType}</p>
+                      <p className="text-gray-600">{ticket.assetSerial}</p>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(ticket.priority)}`}>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, Save, Upload, FileText } from 'lucide-react';
-import { LifecycleAction } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Upload, FileText, Search } from 'lucide-react';
+import { LifecycleAction, UserDetails } from '../../types';
+import { userDetailsService, assetsService, assetPairsService } from '../../lib/supabase';
 
 interface LifecycleModalProps {
   isOpen: boolean;
@@ -12,73 +13,245 @@ interface LifecycleModalProps {
 const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave, actionType }) => {
   const [formData, setFormData] = useState<Partial<LifecycleAction>>({
     actionType: actionType as LifecycleAction['actionType'],
-    assetId: '',
-    toUser: '',
+    primaryAssetSerial: '',
+    secondaryAssetSerial: '',
+    assetPairType: 'PC',
+    toUserFullName: '',
+    toUserDomainAccount: '',
     toLocation: '',
     toDepartment: '',
-    requestedBy: 'David Mwangi',
+    toSection: '',
+    requestedBy: 'ICT Officer',
     status: 'Pending'
   });
+  
   const [movementForm, setMovementForm] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userSearchResults, setUserSearchResults] = useState<UserDetails[]>([]);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [assetDetails, setAssetDetails] = useState<any>(null);
+  const [currentOwnerDetails, setCurrentOwnerDetails] = useState<any>(null);
 
   // Update form data when actionType prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     setFormData(prev => ({
       ...prev,
       actionType: actionType as LifecycleAction['actionType']
     }));
+    
+    // Set default from details for new deployment and redeployment
+    if (actionType === 'New Deployment' || actionType === 'Redeployment') {
+      setFormData(prev => ({
+        ...prev,
+        fromUserFullName: 'ICT Manager',
+        fromUserDomainAccount: 'ICT001',
+        fromLocation: 'ICT Store',
+        fromDepartment: 'ICT',
+        fromSection: 'Asset Management'
+      }));
+    }
   }, [actionType]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Search for assets when serial numbers are entered
+  useEffect(() => {
+    if (formData.primaryAssetSerial && (actionType === 'Relocation' || actionType === 'Surrender' || actionType === 'Change of Ownership')) {
+      fetchAssetDetails();
+    }
+  }, [formData.primaryAssetSerial, actionType]);
+
+  const fetchAssetDetails = async () => {
+    if (!formData.primaryAssetSerial) return;
     
-    // Ensure actionType is always set
-    if (!formData.actionType || !actionType) {
-      alert('Action type is required');
+    try {
+      setLoading(true);
+      
+      // Get asset pair details
+      const assetPair = await assetPairsService.getByAssetSerial(formData.primaryAssetSerial);
+      
+      if (assetPair && assetPair.isDeployed) {
+        setAssetDetails(assetPair);
+        setCurrentOwnerDetails({
+          fullName: assetPair.currentUser,
+          location: assetPair.currentLocation,
+          department: assetPair.currentDepartment,
+          section: assetPair.currentSection
+        });
+        
+        // Auto-populate from fields for relocation and change of ownership
+        if (actionType === 'Relocation' || actionType === 'Change of Ownership') {
+          setFormData(prev => ({
+            ...prev,
+            fromUserFullName: assetPair.currentUser,
+            fromLocation: assetPair.currentLocation,
+            fromDepartment: assetPair.currentDepartment,
+            fromSection: assetPair.currentSection,
+            assetPairType: assetPair.pairType
+          }));
+        }
+        
+        // Auto-populate to fields for surrender
+        if (actionType === 'Surrender') {
+          setFormData(prev => ({
+            ...prev,
+            fromUserFullName: assetPair.currentUser,
+            fromLocation: assetPair.currentLocation,
+            fromDepartment: assetPair.currentDepartment,
+            fromSection: assetPair.currentSection,
+            toUserFullName: 'ICT Manager',
+            toUserDomainAccount: 'ICT001',
+            toLocation: 'ICT Store',
+            toDepartment: 'ICT',
+            toSection: 'Asset Management',
+            assetPairType: assetPair.pairType
+          }));
+        }
+      } else {
+        setError('Asset not found or not currently deployed');
+      }
+    } catch (err) {
+      console.error('Error fetching asset details:', err);
+      setError('Failed to fetch asset details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchUsers = async (searchTerm: string) => {
+    if (searchTerm.length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+    
+    try {
+      // This would be implemented in your userDetailsService
+      // For now, we'll use a mock search
+      const results: UserDetails[] = []; // await userDetailsService.search(searchTerm);
+      setUserSearchResults(results);
+    } catch (err) {
+      console.error('Error searching users:', err);
+    }
+  };
+
+  const selectUser = (user: UserDetails) => {
+    setFormData(prev => ({
+      ...prev,
+      toUserFullName: user.fullName,
+      toUserDomainAccount: user.domainAccount,
+      toLocation: user.location,
+      toDepartment: user.department,
+      toSection: user.section
+    }));
+    setShowUserSearch(false);
+    setUserSearchResults([]);
+  };
+
+  const validateAssetPair = async () => {
+    if (!formData.primaryAssetSerial || !formData.secondaryAssetSerial) {
+      setError('Both primary and secondary asset serial numbers are required');
+      return false;
+    }
+
+    try {
+      // Check if assets exist
+      const primaryAsset = await assetsService.getBySerial(formData.primaryAssetSerial);
+      const secondaryAsset = await assetsService.getBySerial(formData.secondaryAssetSerial);
+      
+      if (!primaryAsset || !secondaryAsset) {
+        setError('One or both assets not found in the system');
+        return false;
+      }
+
+      // Validate asset types for pairing
+      if (formData.assetPairType === 'PC') {
+        const validPCPair = (
+          (primaryAsset.assetType === 'CPU' && secondaryAsset.assetType === 'Monitor') ||
+          (primaryAsset.assetType === 'Monitor' && secondaryAsset.assetType === 'CPU')
+        );
+        if (!validPCPair) {
+          setError('PC pairs must consist of a CPU and Monitor');
+          return false;
+        }
+      } else if (formData.assetPairType === 'VDI') {
+        const validVDIPair = (
+          (primaryAsset.assetType === 'VDI Receiver' && secondaryAsset.assetType === 'Monitor') ||
+          (primaryAsset.assetType === 'Monitor' && secondaryAsset.assetType === 'VDI Receiver')
+        );
+        if (!validVDIPair) {
+          setError('VDI pairs must consist of a VDI Receiver and Monitor');
+          return false;
+        }
+      }
+
+      // Check if assets are already deployed (for new deployment)
+      if (actionType === 'New Deployment') {
+        const existingPair = await assetPairsService.getByAssetSerial(formData.primaryAssetSerial);
+        if (existingPair && existingPair.isDeployed) {
+          setError('Asset is already deployed and cannot be deployed again');
+          return false;
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Error validating asset pair:', err);
+      setError('Failed to validate asset pair');
+      return false;
+    }
+  };
+
+  const validateDomainAccount = (account: string): boolean => {
+    const pattern = /^[KT]\d{8}$/;
+    return pattern.test(account.toUpperCase());
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    
+    // Validate domain account format
+    if (formData.toUserDomainAccount && !validateDomainAccount(formData.toUserDomainAccount)) {
+      setError('Domain account must be in format K12345678 or T12345678');
       return;
     }
 
-    // Set default values for redeployment and surrender
-    let finalFormData = { ...formData };
-    
-    // Ensure actionType is properly set
-    finalFormData.actionType = actionType as LifecycleAction['actionType'];
-    
-    if (actionType === 'Redeployment') {
-      finalFormData = {
-        ...finalFormData,
-        actionType: 'Redeployment',
-        fromUser: 'ICT Store',
-        fromLocation: 'ICT Store',
-        fromDepartment: 'ICT'
-      };
-    } else if (actionType === 'Surrender') {
-      finalFormData = {
-        ...finalFormData,
-        actionType: 'Surrender',
-        toUser: 'ICT Store',
-        toLocation: 'ICT Store',
-        toDepartment: 'ICT'
-      };
+    // Validate asset pair for deployment actions
+    if (['New Deployment', 'Redeployment'].includes(actionType)) {
+      const isValid = await validateAssetPair();
+      if (!isValid) return;
     }
-    
-    onSave({
-      ...finalFormData,
+
+    // Ensure actionType is properly set
+    const finalFormData = {
+      ...formData,
       actionType: actionType as LifecycleAction['actionType'],
-      requestDate: new Date().toISOString()
-    }, movementForm || undefined);
+      requestDate: new Date().toISOString(),
+      toUserDomainAccount: formData.toUserDomainAccount?.toUpperCase()
+    };
     
+    onSave(finalFormData, movementForm || undefined);
     onClose();
+    resetForm();
+  };
+
+  const resetForm = () => {
     setFormData({
       actionType: actionType as LifecycleAction['actionType'],
-      assetId: '',
-      toUser: '',
+      primaryAssetSerial: '',
+      secondaryAssetSerial: '',
+      assetPairType: 'PC',
+      toUserFullName: '',
+      toUserDomainAccount: '',
       toLocation: '',
       toDepartment: '',
-      requestedBy: 'David Mwangi',
+      toSection: '',
+      requestedBy: 'ICT Officer',
       status: 'Pending'
     });
     setMovementForm(null);
+    setError(null);
+    setAssetDetails(null);
+    setCurrentOwnerDetails(null);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -101,13 +274,15 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
 
   if (!isOpen) return null;
 
-  const requiresFromFields = ['Relocation', 'Change of Ownership', 'Exit'].includes(actionType);
-  const isRedeployment = actionType === 'Redeployment';
-  const isSurrender = actionType === 'Surrender';
+  const isDeploymentAction = ['New Deployment', 'Redeployment'].includes(actionType);
+  const isRelocationAction = actionType === 'Relocation';
+  const isSurrenderAction = actionType === 'Surrender';
+  const isChangeOwnershipAction = actionType === 'Change of Ownership';
+  const requiresFromFields = ['Relocation', 'Change of Ownership', 'Surrender'].includes(actionType);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-black">{actionType} Request</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-black">
@@ -116,53 +291,150 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Asset Pair Type Selection */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asset ID/Tag</label>
-              <input
-                type="text"
-                name="assetId"
-                value={formData.assetId}
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Pair Type</label>
+              <select
+                name="assetPairType"
+                value={formData.assetPairType}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
                 required
-                placeholder="Enter asset tag (e.g., KRA-LAP-001)"
+              >
+                <option value="PC">PC (CPU + Monitor)</option>
+                <option value="VDI">VDI (VDI Receiver + Monitor)</option>
+              </select>
+            </div>
+
+            {/* Asset Serial Numbers */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {formData.assetPairType === 'PC' ? 'CPU Serial Number' : 'VDI Receiver Serial Number'}
+              </label>
+              <input
+                type="text"
+                name="primaryAssetSerial"
+                value={formData.primaryAssetSerial}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                required
+                placeholder="Enter primary asset serial number"
               />
             </div>
 
-            {requiresFromFields && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Monitor Serial Number</label>
+              <input
+                type="text"
+                name="secondaryAssetSerial"
+                value={formData.secondaryAssetSerial}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                required
+                placeholder="Enter monitor serial number"
+              />
+            </div>
+
+            {/* Current Owner Details (for relocation, surrender, change of ownership) */}
+            {requiresFromFields && currentOwnerDetails && (
+              <div className="md:col-span-2 p-4 bg-blue-50 rounded-lg">
+                <h3 className="text-sm font-medium text-blue-900 mb-2">Current Asset Owner</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Name:</span> {currentOwnerDetails.fullName}
+                  </div>
+                  <div>
+                    <span className="font-medium">Location:</span> {currentOwnerDetails.location}
+                  </div>
+                  <div>
+                    <span className="font-medium">Department:</span> {currentOwnerDetails.department}
+                  </div>
+                  <div>
+                    <span className="font-medium">Section:</span> {currentOwnerDetails.section}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* To User Details (not for surrender) */}
+            {!isSurrenderAction && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">From User</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {isDeploymentAction ? 'Deploy to User' : 'New User Full Name'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="toUserFullName"
+                      value={formData.toUserFullName}
+                      onChange={handleChange}
+                      onFocus={() => setShowUserSearch(true)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                      required
+                      placeholder="Enter full name"
+                    />
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                  {showUserSearch && userSearchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                      {userSearchResults.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => selectUser(user)}
+                          className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="font-medium">{user.fullName}</div>
+                          <div className="text-sm text-gray-600">{user.domainAccount} - {user.department}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Domain Account</label>
                   <input
                     type="text"
-                    name="fromUser"
-                    value={formData.fromUser || ''}
+                    name="toUserDomainAccount"
+                    value={formData.toUserDomainAccount}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                    placeholder="Current user"
+                    required
+                    placeholder="K12345678 or T12345678"
+                    maxLength={9}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">From Location</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
                   <input
                     type="text"
-                    name="fromLocation"
-                    value={formData.fromLocation || ''}
+                    name="toLocation"
+                    value={formData.toLocation}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                    placeholder="Current location"
+                    required
+                    placeholder="Deployment location"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">From Department</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                   <select
-                    name="fromDepartment"
-                    value={formData.fromDepartment || ''}
+                    name="toDepartment"
+                    value={formData.toDepartment}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                    required
                   >
                     <option value="">Select Department</option>
                     <option value="ICT">ICT</option>
@@ -173,78 +445,27 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
                     <option value="Finance">Finance</option>
                     <option value="Legal">Legal</option>
                     <option value="Audit">Audit</option>
+                    <option value="Strategy & Planning">Strategy & Planning</option>
+                    <option value="Commissioner General">Commissioner General</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+                  <input
+                    type="text"
+                    name="toSection"
+                    value={formData.toSection}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                    required
+                    placeholder="Section within department"
+                  />
                 </div>
               </>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {isSurrender ? 'Return to ICT Store' : 
-                 isRedeployment ? 'Deploy to User' : 'To User'}
-              </label>
-              <input
-                type="text"
-                name="toUser"
-                value={isSurrender ? 'ICT Store' : formData.toUser}
-                onChange={handleChange}
-                disabled={isSurrender}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
-                required
-                placeholder={isSurrender ? 'ICT Store' : 
-                           isRedeployment ? 'User to deploy to' : 'New user name'}
-              />
-              {(isRedeployment || actionType === 'New Deployment') && (
-                <p className="mt-1 text-sm text-gray-500">
-                  Asset ownership will be transferred to this user
-                </p>
-              )}
-              {actionType === 'Change of Ownership' && (
-                <p className="mt-1 text-sm text-gray-500">
-                  Asset ownership will be changed to this user
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">To Location</label>
-              <input
-                type="text"
-                name="toLocation"
-                value={isSurrender ? 'ICT Store' : formData.toLocation}
-                onChange={handleChange}
-                disabled={isSurrender}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
-                required
-                placeholder={isSurrender ? 'ICT Store' : 
-                           isRedeployment ? 'Deployment location' : 'Destination location'}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">To Department</label>
-              <select
-                name="toDepartment"
-                value={isSurrender ? 'ICT' : formData.toDepartment}
-                onChange={handleChange}
-                disabled={isSurrender}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
-                required
-              >
-                <option value="">Select Department</option>
-                <option value="ICT">ICT</option>
-                <option value="Customs">Customs</option>
-                <option value="Domestic Taxes">Domestic Taxes</option>
-                <option value="Investigation & Enforcement">Investigation & Enforcement</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Finance">Finance</option>
-                <option value="Legal">Legal</option>
-                <option value="Audit">Audit</option>
-                <option value="Strategy & Planning">Strategy & Planning</option>
-                <option value="Commissioner General">Commissioner General</option>
-              </select>
-            </div>
-
+            {/* Movement Form Upload */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Asset Movement Form (PDF)
@@ -282,9 +503,6 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
                   </div>
                 )}
               </div>
-              <p className="mt-2 text-sm text-gray-500">
-                Please attach the signed asset movement form as required by KRA policy.
-              </p>
             </div>
           </div>
 
@@ -298,7 +516,8 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-[#CC092F] text-white rounded-lg hover:bg-[#AA0726] flex items-center space-x-2"
+              disabled={loading}
+              className="px-4 py-2 bg-[#CC092F] text-white rounded-lg hover:bg-[#AA0726] flex items-center space-x-2 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               <span>Submit Request</span>
