@@ -99,7 +99,7 @@ const MaintenanceModal: React.FC<MaintenanceModalProps> = ({ isOpen, onClose, on
                 <option value="Switch">Switch</option>
                 <option value="IP Phone">IP Phone</option>
               </select>
-              />
+            
             </div>
 
             <div>
