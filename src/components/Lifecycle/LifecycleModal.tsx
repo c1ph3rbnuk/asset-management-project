@@ -174,7 +174,7 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
         }
       } else if (formData.assetPairType === 'VDI') {
         const validVDIPair = (
-          (primaryAsset.assetType === 'VDI Receiver' && secondaryAsset.assetType === 'Monitor') ||
+          (primaryAsset.assetType === 'VDI' && secondaryAsset.assetType === 'Monitor') ||
           (primaryAsset.assetType === 'Monitor' && secondaryAsset.assetType === 'VDI Receiver')
         );
         if (!validVDIPair) {
