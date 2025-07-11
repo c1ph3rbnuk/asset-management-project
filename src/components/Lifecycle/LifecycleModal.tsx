@@ -99,7 +99,7 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
             fromDepartment: assetPair.currentDepartment,
             fromSection: assetPair.currentSection,
             toUserFullName: 'ICT Manager',
-            toUserDomainAccount: 'ICT001',
+            toUserDomainAccount: 'T00000000',
             toLocation: 'ICT Store',
             toDepartment: 'ICT',
             toSection: 'Asset Management',
