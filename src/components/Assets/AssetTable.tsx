@@ -4,7 +4,7 @@ import { Search, Filter, Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { Asset, AuditLog } from '../../types';
 import AssetModal from './AssetModal';
 import { assetsService } from '../../lib/supabase';
-
+const [loading, setLoading] = useState(false);
 
 interface AssetTableProps {
   assets: Asset[];
