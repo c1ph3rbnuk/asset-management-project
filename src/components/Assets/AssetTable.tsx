@@ -68,7 +68,6 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
 
 
   const handleSaveAsset = (assetData: Partial<Asset>) => {
-    const [loading, setLoading] = useState(false);
     if (modalMode === 'add') {
       handleCreateAsset(assetData);
     } else if (modalMode === 'edit' && selectedAsset) {
@@ -77,7 +76,6 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onAssetUpdate, onAuditL
   };
 
   const handleCreateAsset = async (assetData: Partial<Asset>) => {
-    const [loading, setLoading] = useState(false);
     try {
       setLoading(true);
       const newAsset = await assetsService.create(assetData as Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>);
