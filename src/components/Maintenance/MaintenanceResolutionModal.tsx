@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, AlertTriangle, Plus } from 'lucide-react';
 import { MaintenanceTicket } from '../../types';
 
@@ -265,52 +265,6 @@ const MaintenanceResolutionModal: React.FC<MaintenanceResolutionModalProps> = ({
                             <li>• Only assets of the same type can be used as replacements</li>
                             <li>• Only assets currently "In Store" are available for replacement</li>
                           </ul>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#CC092F] text-white rounded-lg hover:bg-[#AA0726] flex items-center space-x-2"
-              >
-                <Save className="h-4 w-4" />
-                <span>Resolve Ticket</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default MaintenanceResolutionModal;
-                              value={replacementDetails.serialNumber}
-                              onChange={(e) => handleReplacementChange('serialNumber', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                              required={requiresReplacement}
-                              placeholder="Replacement asset serial number"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                          <p className="text-sm text-blue-700">
-                            <strong>Note:</strong> The replacement asset will be automatically added to the system 
-                            and deployed to the same user and location as the obsolete asset.
-                          </p>
                         </div>
                       </div>
                     )}
