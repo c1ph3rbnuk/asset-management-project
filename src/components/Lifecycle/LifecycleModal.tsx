@@ -171,7 +171,7 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
     }
 
     try {
-      // Check if primary asset exists and is available
+      // Check if assets exist
       const primaryAsset = await assetsService.getBySerial(formData.primaryAssetSerial);
       if (!primaryAsset) {
         setError('Primary asset not found in the system');
@@ -195,6 +195,7 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
 
       // For pairs, check secondary asset
       const secondaryAsset = await assetsService.getBySerial(formData.secondaryAssetSerial);
+      
       if (!secondaryAsset) {
         setError('Secondary asset not found in the system');
         return false;
@@ -203,18 +204,6 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
       // Check if secondary asset is available for deployment
       if (secondaryAsset.status === 'Active') {
         setError(`Secondary asset ${formData.secondaryAssetSerial} is already in use and cannot be deployed`);
-        return false;
-      }
-      return false;
-    }
-
-    try {
-      // Check if assets exist
-      const primaryAsset = await assetsService.getBySerial(formData.primaryAssetSerial);
-      const secondaryAsset = await assetsService.getBySerial(formData.secondaryAssetSerial);
-      
-      if (!primaryAsset || !secondaryAsset) {
-        setError('One or both assets not found in the system');
         return false;
       }
 
