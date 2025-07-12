@@ -110,6 +110,18 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
   };
 
   const handleSaveResolution = async (resolutionData: { resolution: string; isObsolete: boolean; obsoleteReason?: string }) => {
+  const handleSaveResolution = async (resolutionData: { 
+    resolution: string; 
+    isObsolete: boolean; 
+    obsoleteReason?: string;
+    requiresReplacement?: boolean;
+    replacementDetails?: {
+      assetType: string;
+      brand: string;
+      model: string;
+      serialNumber: string;
+    };
+  }) => {
     if (!selectedTicket) return;
     
     try {
@@ -133,6 +145,60 @@ const MaintenanceTickets: React.FC<MaintenanceTicketsProps> = ({
       // Update asset status based on resolution
       if (resolutionData.isObsolete) {
         await assetStatusService.updateAssetStatus(selectedTicket.assetSerial, 'Obsolete');
+        
+        // Handle replacement asset if specified
+        if (resolutionData.requiresReplacement && resolutionData.replacementDetails) {
+          try {
+            // Get the original asset details to inherit owner information
+            const originalAsset = await assetStatusService.getAssetBySerial(selectedTicket.assetSerial);
+            
+            if (originalAsset && originalAsset.status === 'Active') {
+              // Update replacement asset with original asset's owner details
+              await assetStatusService.updateAssetOwnership(
+                resolutionData.replacementDetails.serialNumber,
+                {
+                  fullName: originalAsset.user,
+                  location: originalAsset.location,
+                  department: originalAsset.department,
+                  section: originalAsset.section,
+                  domainAccount: originalAsset.domainAccount
+                },
+                'Active'
+              );
+              
+              // Create replacement record
+              const { assetReplacementsService } = await import('../../lib/supabase');
+              await assetReplacementsService.create({
+                originalAssetSerial: selectedTicket.assetSerial,
+                replacementAssetSerial: resolutionData.replacementDetails.serialNumber,
+                maintenanceTicketId: selectedTicket.id,
+                replacementReason: resolutionData.obsoleteReason || 'Asset obsolete',
+                replacementDate: new Date().toISOString(),
+                deployedToUser: originalAsset.user,
+                deployedLocation: originalAsset.location,
+                status: 'Deployed'
+              });
+              
+              // Add audit log for replacement
+              onAuditLog({
+                assetSerial: resolutionData.replacementDetails.serialNumber,
+                action: 'Asset Replacement Deployed',
+                performedBy: currentUser,
+                timestamp: new Date().toISOString(),
+                details: `Replacement asset deployed for obsolete asset ${selectedTicket.assetSerial}`,
+                newValues: { 
+                  status: 'Active',
+                  user: originalAsset.user,
+                  location: originalAsset.location,
+                  replacedAsset: selectedTicket.assetSerial
+                }
+              });
+            }
+          } catch (replacementError) {
+            console.error('Error handling replacement asset:', replacementError);
+            // Continue with obsolete marking even if replacement fails
+          }
+        }
       } else {
         await assetStatusService.updateAssetStatus(selectedTicket.assetSerial, 'Active');
       }

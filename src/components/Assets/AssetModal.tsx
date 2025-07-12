@@ -19,7 +19,7 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
     user: asset?.user || 'ICT Manager',
     location: asset?.location || 'ICT Store',
     department: asset?.department || 'ICT',
-    section: asset?.section || '',
+    section: asset?.section || 'ICT Store',
     status: asset?.status || 'In Store'
   });
 
@@ -209,12 +209,17 @@ const AssetModal: React.FC<AssetModalProps> = ({ isOpen, onClose, onSave, asset,
               <input
                 type="text"
                 name="section"
-                value={formData.section}
+                value={mode === 'add' ? 'ICT Store' : formData.section}
                 onChange={handleChange}
-                disabled={isReadOnly}
+                disabled={isReadOnly || mode === 'add'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent disabled:bg-gray-100"
-                placeholder="Section within department"
+                placeholder={mode === 'add' ? 'ICT Store' : 'Section within department'}
               />
+              {mode === 'add' && (
+                <p className="mt-1 text-sm text-gray-500">
+                  New assets are assigned to ICT Store section
+                </p>
+              )}
             </div>
 
             <div>

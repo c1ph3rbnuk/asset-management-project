@@ -146,9 +146,65 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
     setUserSearchResults([]);
   };
 
+  // Check if asset type supports individual deployment
+  const isIndividualAsset = (assetType: string) => {
+    return ['Laptop', 'IP Phone', 'Printer', 'Router', 'Switch'].includes(assetType);
+  };
+
+  const isPairAsset = (assetType: string) => {
+    return ['CPU', 'Monitor', 'VDI Receiver'].includes(assetType);
+  };
+
   const validateAssetPair = async () => {
-    if (!formData.primaryAssetSerial || !formData.secondaryAssetSerial) {
-      setError('Both primary and secondary asset serial numbers are required');
+    // For individual assets, only primary asset is required
+    if (formData.deploymentType === 'Individual') {
+      if (!formData.primaryAssetSerial) {
+        setError('Asset serial number is required');
+        return false;
+      }
+    } else {
+      // For pairs, both assets are required
+      if (!formData.primaryAssetSerial || !formData.secondaryAssetSerial) {
+        setError('Both primary and secondary asset serial numbers are required');
+        return false;
+      }
+    }
+
+    try {
+      // Check if primary asset exists and is available
+      const primaryAsset = await assetsService.getBySerial(formData.primaryAssetSerial);
+      if (!primaryAsset) {
+        setError('Primary asset not found in the system');
+        return false;
+      }
+
+      // Check if primary asset is available for deployment
+      if (primaryAsset.status === 'Active') {
+        setError(`Primary asset ${formData.primaryAssetSerial} is already in use and cannot be deployed`);
+        return false;
+      }
+
+      // For individual assets, validate the asset type
+      if (formData.deploymentType === 'Individual') {
+        if (!isIndividualAsset(primaryAsset.assetType)) {
+          setError(`${primaryAsset.assetType} assets must be deployed as pairs, not individually`);
+          return false;
+        }
+        return true;
+      }
+
+      // For pairs, check secondary asset
+      const secondaryAsset = await assetsService.getBySerial(formData.secondaryAssetSerial);
+      if (!secondaryAsset) {
+        setError('Secondary asset not found in the system');
+        return false;
+      }
+
+      // Check if secondary asset is available for deployment
+      if (secondaryAsset.status === 'Active') {
+        setError(`Secondary asset ${formData.secondaryAssetSerial} is already in use and cannot be deployed`);
+        return false;
+      }
       return false;
     }
 
@@ -298,8 +354,61 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Asset Pair Type Selection */}
+            {/* Deployment Type Selection */}
             <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Deployment Type</label>
+              <select
+                name="deploymentType"
+                value={formData.deploymentType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                required
+              >
+                <option value="Pair">Asset Pair (PC/VDI)</option>
+                <option value="Individual">Individual Asset (Laptop, Phone, Printer, etc.)</option>
+              </select>
+            </div>
+
+            {/* Asset Pair Type Selection - Only for pairs */}
+            {formData.deploymentType === 'Pair' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Asset Pair Type</label>
+                <select
+                  name="assetPairType"
+                  value={formData.assetPairType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                  required
+                >
+                  <option value="PC">PC (CPU + Monitor)</option>
+                  <option value="VDI">VDI (VDI Receiver + Monitor)</option>
+                </select>
+              </div>
+            )}
+
+            {/* Individual Asset Type Selection - Only for individual assets */}
+            {formData.deploymentType === 'Individual' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+                <select
+                  name="individualAssetType"
+                  value={formData.individualAssetType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                  required
+                >
+                  <option value="">Select Asset Type</option>
+                  <option value="Laptop">Laptop</option>
+                  <option value="IP Phone">IP Phone</option>
+                  <option value="Printer">Printer</option>
+                  <option value="Router">Router</option>
+                  <option value="Switch">Switch</option>
+                </select>
+              </div>
+            )}
+
+            {/* Asset Serial Numbers */}
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Asset Pair Type</label>
               <select
                 name="assetPairType"
@@ -313,10 +422,14 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
               </select>
             </div>
 
-            {/* Asset Serial Numbers */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {formData.assetPairType === 'PC' ? 'CPU Serial Number' : 'VDI Receiver Serial Number'}
+                {formData.deploymentType === 'Individual' 
+                  ? `${formData.individualAssetType || 'Asset'} Serial Number`
+                  : formData.assetPairType === 'PC' 
+                    ? 'CPU Serial Number' 
+                    : 'VDI Receiver Serial Number'
+                }
               </label>
               <input
                 type="text"
@@ -325,22 +438,28 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
                 required
-                placeholder="Enter primary asset serial number"
+                placeholder={formData.deploymentType === 'Individual' 
+                  ? "Enter asset serial number"
+                  : "Enter primary asset serial number"
+                }
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Monitor Serial Number</label>
-              <input
-                type="text"
-                name="secondaryAssetSerial"
-                value={formData.secondaryAssetSerial}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                required
-                placeholder="Enter monitor serial number"
-              />
-            </div>
+            {/* Secondary Asset - Only for pairs */}
+            {formData.deploymentType === 'Pair' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Monitor Serial Number</label>
+                <input
+                  type="text"
+                  name="secondaryAssetSerial"
+                  value={formData.secondaryAssetSerial}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                  required={formData.deploymentType === 'Pair'}
+                  placeholder="Enter monitor serial number"
+                />
+              </div>
+            )}
 
             {/* Current Owner Details (for relocation, surrender, change of ownership) */}
             {requiresFromFields && currentOwnerDetails && (

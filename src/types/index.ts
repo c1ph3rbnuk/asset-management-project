@@ -46,10 +46,14 @@ export interface LifecycleAction {
   id: string;
   actionType: 'New Deployment' | 'Redeployment' | 'Relocation' | 'Surrender' | 'Change of Ownership' | 'Exit';
   
+  // Deployment type
+  deploymentType: 'Pair' | 'Individual';
+  
   // Asset Information
   primaryAssetSerial: string; // CPU or VDI Receiver
   secondaryAssetSerial: string; // Monitor
   assetPairType: 'PC' | 'VDI';
+  individualAssetType?: string; // For individual assets
   
   // From User Details (for relocations, surrenders, change of ownership)
   fromUserFullName?: string;

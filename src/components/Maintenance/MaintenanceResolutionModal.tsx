@@ -37,6 +37,42 @@ const MaintenanceResolutionModal: React.FC<MaintenanceResolutionModalProps> = ({
     serialNumber: ''
   });
 
+  const [availableAssets, setAvailableAssets] = useState<any[]>([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  // Load available assets for replacement when obsolete is checked
+  useEffect(() => {
+    if (isObsolete && ticket) {
+      loadAvailableReplacementAssets();
+    }
+  }, [isObsolete, ticket]);
+
+  const loadAvailableReplacementAssets = async () => {
+    if (!ticket) return;
+    
+    try {
+      setLoadingAssets(true);
+      const { assetsService } = await import('../../lib/supabase');
+      const allAssets = await assetsService.getAll();
+      
+      // Filter assets that are:
+      // 1. Same type as the asset being replaced
+      // 2. In Store status (available for deployment)
+      // 3. Not the same asset being replaced
+      const available = allAssets.filter(asset => 
+        asset.assetType === ticket.assetType &&
+        asset.status === 'In Store' &&
+        asset.serialNumber !== ticket.assetSerial
+      );
+      
+      setAvailableAssets(available);
+    } catch (err) {
+      console.error('Error loading available assets:', err);
+    } finally {
+      setLoadingAssets(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
@@ -167,55 +203,100 @@ const MaintenanceResolutionModal: React.FC<MaintenanceResolutionModalProps> = ({
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
-                            <select
-                              value={replacementDetails.assetType}
-                              onChange={(e) => handleReplacementChange('assetType', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                              required={requiresReplacement}
-                            >
-                              <option value="">Select Asset Type</option>
-                              <option value="PC">PC</option>
-                              <option value="Laptop">Laptop</option>
-                              <option value="VDI">VDI</option>
-                              <option value="Monitor">Monitor</option>
-                              <option value="CPU">CPU</option>
-                              <option value="VDI Receiver">VDI Receiver</option>
-                              <option value="Printer">Printer</option>
-                              <option value="Router">Router</option>
-                              <option value="Switch">Switch</option>
-                              <option value="IP Phone">IP Phone</option>
-                            </select>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Replacement Asset ({ticket.assetType})
+                            </label>
+                            {loadingAssets ? (
+                              <div className="flex items-center justify-center py-4">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#CC092F]"></div>
+                              </div>
+                            ) : (
+                              <select
+                                value={replacementDetails.serialNumber}
+                                onChange={(e) => {
+                                  const selectedAsset = availableAssets.find(asset => asset.serialNumber === e.target.value);
+                                  if (selectedAsset) {
+                                    setReplacementDetails({
+                                      assetType: selectedAsset.assetType,
+                                      brand: selectedAsset.brand,
+                                      model: selectedAsset.model,
+                                      serialNumber: selectedAsset.serialNumber
+                                    });
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+                                required={requiresReplacement}
+                              >
+                                <option value="">Select replacement asset</option>
+                                {availableAssets.map(asset => (
+                                  <option key={asset.id} value={asset.serialNumber}>
+                                    {asset.serialNumber} - {asset.brand} {asset.model}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {availableAssets.length === 0 && !loadingAssets && (
+                              <p className="mt-2 text-sm text-red-600">
+                                No available {ticket.assetType} assets in store for replacement
+                              </p>
+                            )}
                           </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
-                            <input
-                              type="text"
-                              value={replacementDetails.brand}
-                              onChange={(e) => handleReplacementChange('brand', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                              required={requiresReplacement}
-                              placeholder="Asset brand"
-                            />
-                          </div>
+                          {replacementDetails.serialNumber && (
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <h5 className="text-sm font-medium text-gray-800 mb-2">Selected Asset Details:</h5>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p><strong>Type:</strong> {replacementDetails.assetType}</p>
+                                <p><strong>Brand:</strong> {replacementDetails.brand}</p>
+                                <p><strong>Model:</strong> {replacementDetails.model}</p>
+                                <p><strong>Serial:</strong> {replacementDetails.serialNumber}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-                            <input
-                              type="text"
-                              value={replacementDetails.model}
-                              onChange={(e) => handleReplacementChange('model', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                              required={requiresReplacement}
-                              placeholder="Asset model"
-                            />
-                          </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                          <p className="text-sm text-blue-700">
+                            <strong>Replacement Process:</strong>
+                          </p>
+                          <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                            <li>• The replacement asset will inherit the same owner and location</li>
+                            <li>• The obsolete asset will be moved to obsolete store</li>
+                            <li>• Only assets of the same type can be used as replacements</li>
+                            <li>• Only assets currently "In Store" are available for replacement</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
-                            <input
-                              type="text"
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#CC092F] text-white rounded-lg hover:bg-[#AA0726] flex items-center space-x-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>Resolve Ticket</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MaintenanceResolutionModal;
                               value={replacementDetails.serialNumber}
                               onChange={(e) => handleReplacementChange('serialNumber', e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
