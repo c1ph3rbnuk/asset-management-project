@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Eye, Filter } from 'lucide-react';
+import { Edit, Trash2, Eye, Filter, Plus, Search } from 'lucide-react';
 import { Asset } from '../../types';
 import { assetsService } from '../../lib/supabase';
 
@@ -13,12 +13,26 @@ interface AssetTableProps {
 
 const AssetTable: React.FC<AssetTableProps> = ({ assets, onEdit, onDelete, onView, onRefresh }) => {
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>(assets);
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('');
 
   useEffect(() => {
     let filtered = assets;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(asset =>
+        asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.assetType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.department.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
     if (statusFilter) {
       filtered = filtered.filter(asset => asset.status === statusFilter);
@@ -33,7 +47,7 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onEdit, onDelete, onVie
     }
 
     setFilteredAssets(filtered);
-  }, [assets, statusFilter, departmentFilter, assetTypeFilter]);
+  }, [assets, searchTerm, statusFilter, departmentFilter, assetTypeFilter]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this asset?')) {
@@ -59,6 +73,20 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onEdit, onDelete, onVie
     <div className="space-y-4">
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        {/* Search Bar */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search assets by serial number, type, brand, model, user, location, or department..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
+            />
+          </div>
+        </div>
+
         <div className="flex items-center space-x-2 mb-3">
           <Filter className="h-4 w-4 text-gray-500" />
           <span className="text-sm font-medium text-gray-700">Filters</span>
@@ -113,6 +141,7 @@ const AssetTable: React.FC<AssetTableProps> = ({ assets, onEdit, onDelete, onVie
             </span>
             <button
               onClick={() => {
+                setSearchTerm('');
                 setStatusFilter('');
                 setDepartmentFilter('');
                 setAssetTypeFilter('');
