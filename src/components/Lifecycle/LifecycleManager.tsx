@@ -163,7 +163,7 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
               section: action.toSection
             });
             
-            // Update both assets
+            // Update both assets to Active status
             await assetsService.updateBySerial(action.primaryAssetSerial, { 
               status: 'Active',
               user: action.toUserFullName,
@@ -203,7 +203,7 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
               section: action.toSection
             });
             
-            // Update both assets
+            // Update both assets to Active status
             await assetsService.updateBySerial(action.primaryAssetSerial, { 
               status: 'Active',
               user: action.toUserFullName,
