@@ -266,12 +266,17 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
       if (!isValid) return;
     }
 
-    // Ensure actionType is properly set
+    // Prepare form data based on deployment type
     const finalFormData = {
       ...formData,
       actionType: actionType as LifecycleAction['actionType'],
       requestDate: new Date().toISOString(),
-      toUserDomainAccount: formData.toUserDomainAccount?.toUpperCase()
+      toUserDomainAccount: formData.toUserDomainAccount?.toUpperCase(),
+      // For individual assets, clear secondary asset serial and set deployment type
+      ...(formData.deploymentType === 'Individual' && {
+        secondaryAssetSerial: '', // Clear secondary asset for individual deployment
+        assetPairType: undefined, // Clear pair type for individual assets
+      })
     };
     
     onSave(finalFormData, movementForm || undefined);
@@ -358,59 +363,37 @@ const LifecycleModal: React.FC<LifecycleModalProps> = ({ isOpen, onClose, onSave
               </select>
             </div>
 
-            {/* Asset Pair Type Selection - Only for pairs */}
-            {formData.deploymentType === 'Pair' && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Asset Pair Type</label>
-                <select
-                  name="assetPairType"
-                  value={formData.assetPairType}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                  required
-                >
-                  <option value="PC">PC (CPU + Monitor)</option>
-                  <option value="VDI">VDI (VDI Receiver + Monitor)</option>
-                </select>
-              </div>
-            )}
-
-            {/* Individual Asset Type Selection - Only for individual assets */}
-            {formData.deploymentType === 'Individual' && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
-                <select
-                  name="individualAssetType"
-                  value={formData.individualAssetType}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
-                  required
-                >
-                  <option value="">Select Asset Type</option>
-                  <option value="Laptop">Laptop</option>
-                  <option value="IP Phone">IP Phone</option>
-                  <option value="Printer">Printer</option>
-                  <option value="Router">Router</option>
-                  <option value="Switch">Switch</option>
-                </select>
-              </div>
-            )}
-
-            {/* Asset Serial Numbers */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Pair Type</label>
+            {/* Asset Type Selection - Show appropriate options based on deployment type */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {formData.deploymentType === 'Pair' ? 'Asset Pair Type' : 'Asset Type'}
+              </label>
               <select
-                name="assetPairType"
-                value={formData.assetPairType}
+                name={formData.deploymentType === 'Pair' ? 'assetPairType' : 'individualAssetType'}
+                value={formData.deploymentType === 'Pair' ? formData.assetPairType : formData.individualAssetType}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#CC092F] focus:border-transparent"
                 required
               >
-                <option value="PC">PC (CPU + Monitor)</option>
-                <option value="VDI">VDI (VDI Receiver + Monitor)</option>
+                {formData.deploymentType === 'Pair' ? (
+                  <>
+                    <option value="PC">PC (CPU + Monitor)</option>
+                    <option value="VDI">VDI (VDI Receiver + Monitor)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">Select Asset Type</option>
+                    <option value="Laptop">Laptop</option>
+                    <option value="IP Phone">IP Phone</option>
+                    <option value="Printer">Printer</option>
+                    <option value="Router">Router</option>
+                    <option value="Switch">Switch</option>
+                  </>
+                )}
               </select>
             </div>
 
+            {/* Asset Serial Numbers */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {formData.deploymentType === 'Individual' 

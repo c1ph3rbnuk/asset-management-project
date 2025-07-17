@@ -121,6 +121,206 @@ const LifecycleManager: React.FC<LifecycleManagerProps> = ({
     try {
       // Get the assets
       const primaryAsset = await assetsService.getBySerial(action.primaryAssetSerial);
+      
+      if (!primaryAsset) {
+        throw new Error('Primary asset not found');
+      }
+      
+      // For individual assets, we don't need a secondary asset
+      let secondaryAsset = null;
+      if (action.deploymentType === 'Pair' && action.secondaryAssetSerial) {
+        secondaryAsset = await assetsService.getBySerial(action.secondaryAssetSerial);
+        if (!secondaryAsset) {
+          throw new Error('Secondary asset not found');
+        }
+      }
+      
+      let assetPair: AssetPair | null = null;
+      
+      // For pair deployments, check if asset pair already exists
+      if (action.deploymentType === 'Pair') {
+        assetPair = await assetPairsService.getByAssetSerial(action.primaryAssetSerial);
+      }
+      
+      switch (action.actionType) {
+        case 'New Deployment':
+          if (action.deploymentType === 'Pair' && secondaryAsset) {
+            // Create new asset pair
+            if (!assetPair) {
+              assetPair = await assetPairsService.create({
+                primaryAssetId: primaryAsset.id,
+                secondaryAssetId: secondaryAsset.id,
+                pairType: action.assetPairType!,
+                isDeployed: false
+              });
+            }
+            
+            // Mark as deployed with user details
+            await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+              fullName: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection
+            });
+            
+            // Update both assets
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          } else {
+            // Individual asset deployment
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          }
+          break;
+          
+        case 'Redeployment':
+          if (action.deploymentType === 'Pair' && assetPair && secondaryAsset) {
+            // Update deployment with new user details
+            await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+              fullName: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection
+            });
+            
+            // Update both assets
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          } else {
+            // Individual asset redeployment
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'Active',
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          }
+          break;
+          
+        case 'Relocation':
+        case 'Change of Ownership':
+          if (action.deploymentType === 'Pair' && assetPair && secondaryAsset) {
+            // Update deployment with new user details
+            await assetPairsService.updateDeploymentStatus(assetPair.id, true, {
+              fullName: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection
+            });
+            
+            // Update both assets
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          } else {
+            // Individual asset relocation/change of ownership
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              user: action.toUserFullName,
+              location: action.toLocation,
+              department: action.toDepartment,
+              section: action.toSection,
+              domainAccount: action.toUserDomainAccount
+            });
+          }
+          break;
+          
+        case 'Surrender':
+          if (action.deploymentType === 'Pair' && assetPair && secondaryAsset) {
+            // Mark as not deployed and return to ICT
+            await assetPairsService.updateDeploymentStatus(assetPair.id, false, {
+              fullName: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management'
+            });
+            
+            // Update both assets
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'In Store',
+              user: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management',
+              domainAccount: 'ICT001'
+            });
+            await assetsService.updateBySerial(action.secondaryAssetSerial, { 
+              status: 'In Store',
+              user: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management',
+              domainAccount: 'ICT001'
+            });
+          } else {
+            // Individual asset surrender
+            await assetsService.updateBySerial(action.primaryAssetSerial, { 
+              status: 'In Store',
+              user: 'ICT Manager',
+              location: 'ICT Store',
+              department: 'ICT',
+              section: 'Asset Management',
+              domainAccount: 'ICT001'
+            });
+          }
+          break;
+        }
+    } catch (err) {
+      console.error('Error handling asset pair action:', err);
+      throw err; // Re-throw to show error to user
+    }
+  };
+
+  const handleAssetPairActionOld = async (action: LifecycleAction) => {
+    try {
+      // Get the assets
+      const primaryAsset = await assetsService.getBySerial(action.primaryAssetSerial);
       const secondaryAsset = await assetsService.getBySerial(action.secondaryAssetSerial);
       
       if (!primaryAsset || !secondaryAsset) {

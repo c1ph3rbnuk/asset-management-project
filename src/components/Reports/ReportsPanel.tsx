@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Download, TrendingUp, BarChart3, PieChart } from 'lucide-react';
+import { FileText, Download, TrendingUp } from 'lucide-react';
 import { Asset, MaintenanceTicket, LifecycleAction } from '../../types';
 
 interface ReportsPanelProps {
@@ -9,32 +9,36 @@ interface ReportsPanelProps {
 }
 
 const ReportsPanel: React.FC<ReportsPanelProps> = ({ assets, tickets, actions }) => {
-  const reports = [
-    {
-      title: 'Asset Distribution Report',
-      description: 'Distribution of assets across departments and locations',
-      icon: PieChart,
-      color: 'bg-blue-500'
-    },
-    {
-      title: 'Maintenance Analytics',
-      description: 'Analysis of maintenance requests and resolution times',
-      icon: BarChart3,
-      color: 'bg-green-500'
-    },
-    {
-      title: 'Lifecycle Movement Report',
-      description: 'Track asset movements and lifecycle changes',
-      icon: TrendingUp,
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Audit Compliance Report',
-      description: 'Comprehensive audit trail and compliance tracking',
-      icon: FileText,
-      color: 'bg-[#CC092F]'
-    }
-  ];
+  const generateAllAssetsCSV = () => {
+    // CSV headers
+    const headers = ['Asset Type', 'Serial Number', 'Brand', 'Model', 'Location', 'Status'];
+    
+    // Convert assets to CSV rows
+    const csvRows = assets.map(asset => [
+      asset.assetType,
+      asset.serialNumber,
+      asset.brand,
+      asset.model,
+      asset.location,
+      asset.status
+    ]);
+    
+    // Combine headers and data
+    const csvContent = [headers, ...csvRows]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `KRA_All_Assets_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const quickStats = [
     { label: 'Total Assets', value: assets.length.toLocaleString(), trend: '+12%' },
@@ -61,30 +65,34 @@ const ReportsPanel: React.FC<ReportsPanelProps> = ({ assets, tickets, actions })
       </div>
       
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-black mb-6">Available Reports</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {reports.map((report, index) => {
-            const Icon = report.icon;
-            return (
-              <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`${report.color} rounded-lg p-3`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-lg font-medium text-black">{report.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{report.description}</p>
-                    </div>
-                  </div>
-                  <button className="flex items-center space-x-1 px-3 py-1 text-sm text-[#CC092F] hover:text-[#AA0726] border border-[#CC092F] rounded-lg hover:bg-red-50">
-                    <Download className="h-4 w-4" />
-                    <span>Generate</span>
-                  </button>
+        <h3 className="text-lg font-semibold text-black mb-6">Asset Reports</h3>
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="bg-[#CC092F] rounded-lg p-3">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-lg font-medium text-black">All Assets Report</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  Complete list of all assets with their details including asset type, serial number, brand, model, location, and status
+                </p>
+                <div className="mt-2 text-xs text-gray-500">
+                  <span className="font-medium">Includes:</span> Asset Type • Serial Number • Brand & Model • Location • Status
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  <span className="font-medium">Total Assets:</span> {assets.length.toLocaleString()} assets
                 </div>
               </div>
-            );
-          })}
+            </div>
+            <button 
+              onClick={generateAllAssetsCSV}
+              className="flex items-center space-x-1 px-4 py-2 text-sm text-white bg-[#CC092F] hover:bg-[#AA0726] rounded-lg transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              <span>Download CSV</span>
+            </button>
+          </div>
         </div>
       </div>
       
@@ -92,14 +100,14 @@ const ReportsPanel: React.FC<ReportsPanelProps> = ({ assets, tickets, actions })
         <h3 className="text-lg font-semibold text-black mb-4">Recent Reports</h3>
         <div className="space-y-4">
           {[
-            { name: 'Monthly Asset Report - January 2024', date: '2024-01-31', status: 'Completed' },
-            { name: 'Maintenance Analysis Q4 2023', date: '2024-01-15', status: 'Completed' },
-            { name: 'Audit Compliance Report', date: '2024-01-10', status: 'In Progress' }
+            { name: 'All Assets Report - January 2024', date: '2024-01-31', status: 'Completed', count: '1,247 assets' },
+            { name: 'All Assets Report - December 2023', date: '2023-12-31', status: 'Completed', count: '1,198 assets' },
+            { name: 'All Assets Report - November 2023', date: '2023-11-30', status: 'Completed', count: '1,156 assets' }
           ].map((report, index) => (
             <div key={index} className="flex items-center justify-between p-4 bg-[#F4F4F4] rounded-lg">
               <div>
                 <p className="text-sm font-medium text-black">{report.name}</p>
-                <p className="text-sm text-gray-600">Generated on {report.date}</p>
+                <p className="text-sm text-gray-600">Generated on {report.date} • {report.count}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <span className={`px-2 py-1 text-xs rounded-full ${

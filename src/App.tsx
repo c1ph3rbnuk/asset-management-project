@@ -25,6 +25,7 @@ function App() {
   const [dashboardModalOpen, setDashboardModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Load data when authenticated
   useEffect(() => {
@@ -256,7 +257,12 @@ function App() {
 
   return (
     <div className="flex h-screen bg-[#F4F4F4]">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header currentUser={currentUser?.name} onLogout={handleLogout} />
         <main className="flex-1 overflow-y-auto p-6">
